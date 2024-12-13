@@ -29,10 +29,10 @@ public class Note {
 	private LocalDate date;
 	
 	@ManyToOne()
-	private Ticket tickets;
+	private Ticket ticket;
 	
 	@ManyToOne()
-	private User users;
+	private User user;
 
 	public Long getId() {
 		return id;
@@ -59,19 +59,19 @@ public class Note {
 	}
 
 	public Ticket getTickets() {
-		return tickets;
+		return ticket;
 	}
 
-	public void setTickets(Ticket tickets) {
-		this.tickets = tickets;
+	public void setTickets(Ticket ticket) {
+		this.ticket = ticket;
 	}
 
 	public User getUsers() {
-		return users;
+		return user;
 	}
 
-	public void setUsers(User users) {
-		this.users = users;
+	public void setUsers(User user) {
+		this.user = user;
 	}
 
 

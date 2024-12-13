@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<div th:replace="~{fragments :: head}"></div>
+	<title>Tickets</title>
+</head>
+
+<body>
+	<nav th:replace="~{fragments :: navbar}"></nav>
+	<div class="container">
+		<h1>If you need Help, open a ticket </h1>
+		<hr th:replace="~{fragments :: line}">
+		<div th:if="${insertMessage != null}">
+			<div class="alert alert-success alert-dismissible fade show" role="alert" id="message">
+				<span th:text="${scsMs}"></span>
+				<script>
+					setTimeout(function () {
+						let alertElement = document.getElementById('message');
+						let alertInstance = bootstrap.Alert.getOrCreateInstance(alertElement);
+						alertInstance.close();
+					}, 5000); // 5000 millisecondi = 3 secondi
+				</script>
+			</div>
+
+		</div>
+		<div class="container" th:if="${!tickets.isEmpty()}">
+			<table class="content table table-danger">
+				<thead>
+					<tr class="table-success">
+						<th>Name</th>
+						<th>Description</th>
+						<th>Category</th>
+						<th>Status</th>
+						<th>Detalis</th>
+						<th>Edit</th>
+						<th>Delete</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr th:each="ticket : ${tickets}">
+						<td class="table-primary" th:text="${ticket.title}"></td>
+						<td class="table-secondary" th:text="${ticket.text}"></td>
+						<td class="table-secondary" th:text="${ticket.category.name}"></td>
+						<td class="table-secondary" th:text="${ticket.status}"></td>
+						<td class="table-light">
+							<a class="btn btn-primary" th:href="@{|/tickets/detail/${ticket.id}?key=${key}|}">
+								<i>Check the details</i>
+							</a>
+						</td>
+						<td class="table-warning">
+							<a class="btn btn-warning" th:href="@{|/tickets/edit/${ticket.id}}">
+								<i class="bi bi-pencil-square"></i>
+							</a>
+						</td>
+						<td>
+							<form action="#" th:action="@{|/tickets/delete/${ticket.id}|}" method="post">
+								<button class="btn btn-danger" type="submit" id="submitButton"
+									onclick="return confirm ('Hey Buddy! if you cofirm, this ticket was never exist, r you sure about that?')">
+									<i class="bi bi-trash3"></i>
+								</button>
+							</form>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="container" id="alert">
+			<div class="content alert alert-danger" role="alert" th:if="${tickets.isEmpty()}">There are no tickets yet,
+				do you need help? Open new one</div>
+		</div>
+		<div class="d-flex justify-content-center" th:if="${tickets.isEmpty()}">
+			<button type="button" class="btn btn-warning">
+				<a id="ticket" th:href="@{/tickets/create}">Create new Ticket
+					<span><i class="bi bi-plus-circle"></i></span>
+				</a>
+			</button>
+
+		</div>
+	</div>
+	<div th:replace="~{fragments :: scripts}"></div>
+</body>
+
+</html>

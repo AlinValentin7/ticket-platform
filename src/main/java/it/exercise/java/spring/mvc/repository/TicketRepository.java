@@ -8,5 +8,6 @@ import it.exercise.java.spring.mvc.model.Ticket;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long>{
 
-	public List <Ticket> findByTitleContaing(String title);
+	public List<Ticket> findByTitleContaining(String title);
+
 }

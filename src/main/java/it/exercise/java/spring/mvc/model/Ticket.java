@@ -2,7 +2,10 @@ package it.exercise.java.spring.mvc.model;
 
 import java.util.List; 
 
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -25,16 +28,20 @@ private String title;
 @NotNull
 private String text;
 
+@Enumerated(EnumType.STRING)
+private Status status;
+
+
 @OneToMany(mappedBy = "ticket")
 private List<Note> notes;
 
 @ManyToOne(fetch = FetchType.EAGER)
-@JoinColumn (name = "user_id", nullable = false)
-private User users;
+@JoinColumn (name = "user_id", nullable = true)
+private User user;
 
 @ManyToOne (fetch = FetchType.EAGER)
-@JoinColumn (name = "category_id", nullable = false)
-private Category categories;
+@JoinColumn (name = "category_id", nullable = true)
+private Category category;
 
 public Long getId() {
 	return id;
@@ -69,19 +76,26 @@ public void setNotes(List<Note> notes) {
 }
 
 public User getUsers() {
-	return users;
+	return user;
 }
 
-public void setUsers(User users) {
-	this.users = users;
+public void setUsers(User user) {
+	this.user = user;
 }
 
-public Category getCategories() {
-	return categories;
+public Category getCategory() {
+	return category;
 }
 
-public void setCategories(Category categories) {
-	this.categories = categories;
+public void setCategory(Category category) {
+	this.category = category;
+}
+public Status getStatus() {
+    return status;
+}
+
+public void setStatus(Status status) {
+    this.status = status;
 }
 
 }

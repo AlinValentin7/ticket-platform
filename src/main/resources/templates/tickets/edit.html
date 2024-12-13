@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<div th:replace="~{fragments :: head}"></div>
+	<title>Edit Ticket</title>
+</head>
+
+<body>
+	<nav th:replace="~{fragments :: navbar}"></nav>
+	<div class="container mt-4">
+		<h1>Edit Ticket</h1>
+		<hr th:replace="~{fragments :: line}">
+		<form id="ticket-form" th:object="${ticket}" th:action="@{'/tickets/edit/{id}' (id=${ticket.id})}" method="post"
+			class="row g-3">
+			<div class="col-md-10">
+				<label for="title" class="form-label">Title</label>
+				<input type="text" class="form-control" id="title" th:errorClass="is-invalid"
+					placeholder="Edit title here!" th:field="*{title}" required>
+				<div th:if="${#fields.hasErrors('title')}" class="invalid-feedback">
+					<ul>
+						<li th:each="err : ${#fields.errors('title')}" th:text="${err}"></li>
+					</ul>
+				</div>
+			</div>
+
+			<div class="col-md-12">
+				<label for="text" class="form-label">Problem description</label>
+				<textarea id="text" class="form-control" th:errorClass="is-invalid"
+					placeholder="Describe the problem here!" th:field="*{text}" required></textarea>
+				<div th:if="${#fields.hasErrors('text')}" class="invalid-feedback">
+					<ul>
+						<li th:each="err : ${#fields.errors('text')}" th:text="${err}"></li>
+					</ul>
+				</div>
+			</div>
+
+			<!-- Selezione della categoria -->
+			<div class="col-md-10">
+				<label for="category" class="form-label">Category</label>
+				<select class="form-select" id="category" th:field="*{category.id}">
+					<option value="" disabled>Select a category</option>
+					<option th:each="c : ${allCategories}" th:value="${c.id}" th:text="${c.name}"
+						th:selected="${ticket.category.id == c.id}">
+					</option>
+				</select>
+				<div th:if="${#fields.hasErrors('category')}" class="invalid-feedback">
+					<ul>
+						<li th:each="err : ${#fields.errors('category')}" th:text="${err}"></li>
+					</ul>
+				</div>
+			</div>
+			<div class="col-md-10">
+				<label for="status" class="form-label">Status</label>
+				<select class="form-select" id="status" th:field="*{status}">
+					<option value="TODO">TODO</option>
+					<option value="IN_PROGRESS">IN PROGRESS</option>
+					<option value="DONE">DONE</option>
+				</select>
+			</div>
+
+			<div class="col-12 mt-3">
+				<button type="submit" class="btn btn-primary">Save Changes</button>
+				<a class="btn btn-secondary" th:href="@{/tickets}">Cancel</a>
+			</div>
+		</form>
+	</div>
+	<div th:replace="~{fragments :: scripts}"></div>
+</body>
+
+</html>

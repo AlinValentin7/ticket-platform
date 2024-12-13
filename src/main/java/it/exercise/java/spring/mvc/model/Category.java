@@ -16,12 +16,12 @@ public class Category {
 	@GeneratedValue(strategy = GenerationType.IDENTITY) 
 	private Long id;
 	
-	@NotNull (message = "category name must have a name")
-	@NotBlank
+	//@NotNull (message = "category name must have a name")
+	//@NotBlank
 	private String name;
 	
 	@OneToMany(mappedBy = "category")
-	private List <Ticket> tickets;
+	private List <Ticket> ticket;
 
 	public Long getId() {
 		return id;
@@ -40,11 +40,11 @@ public class Category {
 	}
 
 	public List<Ticket> getTickets() {
-		return tickets;
+		return ticket;
 	}
 
-	public void setTickets(List<Ticket> tickets) {
-		this.tickets = tickets;
+	public void setTickets(List<Ticket> ticket) {
+		this.ticket = ticket;
 	}
 	
 	
