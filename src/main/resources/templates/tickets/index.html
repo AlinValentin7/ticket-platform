@@ -44,17 +44,17 @@
 						<td class="table-secondary" th:text="${ticket.category.name}"></td>
 						<td class="table-secondary" th:text="${ticket.status}"></td>
 						<td class="table-light">
-							<a class="btn btn-primary" th:href="@{|/tickets/detail/${ticket.id}?key=${key}|}">
+							<a class="btn btn-primary" th:href="@{|/tickets/detail/${ticket.id}?key=${key}|}" >
 								<i>Check the details</i>
 							</a>
 						</td>
-						<td class="table-warning">
+						<td class="table-warning" sec:authorize="hasAuthority('ADMIN')">
 							<a class="btn btn-warning" th:href="@{|/tickets/edit/${ticket.id}}">
 								<i class="bi bi-pencil-square"></i>
 							</a>
 						</td>
 						<td>
-							<form action="#" th:action="@{|/tickets/delete/${ticket.id}|}" method="post">
+							<form action="#" th:action="@{|/tickets/delete/${ticket.id}|}" method="post" sec:authorize="hasAuthority('ADMIN')">
 								<button class="btn btn-danger" type="submit" id="submitButton"
 									onclick="return confirm ('Hey Buddy! if you cofirm, this ticket was never exist, r you sure about that?')">
 									<i class="bi bi-trash3"></i>

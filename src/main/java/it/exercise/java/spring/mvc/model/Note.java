@@ -1,3 +1,4 @@
+
 package it.exercise.java.spring.mvc.model;
 
 import java.time.LocalDate;
@@ -28,11 +29,37 @@ public class Note {
 	@DateTimeFormat
 	private LocalDate date;
 	
+	private String author;
+	
 	@ManyToOne()
 	private Ticket ticket;
 	
 	@ManyToOne()
 	private User user;
+
+	public String getAuthor() {
+		return author;
+	}
+
+	public void setAuthor(String author) {
+		this.author = author;
+	}
+
+	public Ticket getTicket() {
+		return ticket;
+	}
+
+	public void setTicket(Ticket ticket) {
+		this.ticket = ticket;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
 
 	public Long getId() {
 		return id;

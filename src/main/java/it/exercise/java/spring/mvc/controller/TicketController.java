@@ -1,19 +1,17 @@
 package it.exercise.java.spring.mvc.controller;
 
+import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import it.exercise.java.spring.mvc.model.Category;
@@ -31,135 +29,305 @@ import jakarta.validation.Valid;
 @RequestMapping("/tickets")
 public class TicketController {
 
-	@Autowired
-	private TicketRepository ticketRep;
+    @Autowired
+    private TicketRepository ticketRep;
 
-	@Autowired
-	private CategoryRepository categoryRep;
+    @Autowired
+    private CategoryRepository categoryRep;
 
-	@Autowired
-	private UserRepository userRep;
+    @Autowired
+    private UserRepository userRep;
 
-	@Autowired
-	private NoteRepository noteRep;
+    @Autowired
+    private NoteRepository noteRep;
 
-	@GetMapping
-	public String index(Model model, @RequestParam(name = "keyword", required = false) String key) {
-		List<Ticket> allTickets;
+    /**
+     * Lista dei Ticket.
+     * - ADMIN vede tutti i ticket.
+     * - OPERATOR vede solo i ticket a lui assegnati.
+     */
+    @GetMapping
+    public String index(Authentication authentication,
+                        Model model, 
+                        @RequestParam(name = "keyword", required = false) String key, 
+                        Principal principal) {
+        List<Ticket> allTickets;
 
-		if (key != null && !key.isBlank()) {
-			allTickets = ticketRep.findByTitleContaining(key);
-			model.addAttribute(key, key);
-		} else {
-			allTickets = ticketRep.findAll();
-		}
-		model.addAttribute("tickets", allTickets);
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-		return "tickets/index";
-	}
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
 
-	@GetMapping("/detail/{id}")
-	public String show(@PathVariable(name = "id") Long id, @RequestParam(name = "key", required = false) String key,
-			Model model) {
+        if (isAdmin) {
+            if (key != null && !key.isBlank()) {
+                allTickets = ticketRep.findByTitleContaining(key);
+                model.addAttribute("key", key);
+            } else {
+                allTickets = ticketRep.findAll();
+            }
+        } else {
+            // OPERATOR vede solo i suoi ticket
+            if (key != null && !key.isBlank()) {
+                allTickets = ticketRep.findByTitleContainingAndUser(key, currentUser);
+                model.addAttribute("key", key);
+            } else {
+                allTickets = ticketRep.findByUser(currentUser);
+            }
+        }
 
-		Optional<Ticket> ticketOpt = ticketRep.findById(id);
+        model.addAttribute("tickets", allTickets);
+        return "tickets/index";
+    }
 
-		if (ticketOpt.isPresent()) {
-			model.addAttribute("ticket", ticketOpt.get());
-		}
-		model.addAttribute("key", key);
-		if (key == null || key.isBlank() || key.equals("null")) {
-			model.addAttribute("ticketUrl", "/tickets");
-		} else {
-			model.addAttribute("ticketsUrl", "/tickets?key=" + key);
-		}
+    /**
+     * Mostra i dettagli di un Ticket.
+     * - ADMIN può vedere qualsiasi ticket.
+     * - OPERATOR può vedere solo i ticket a lui assegnati.
+     */
+    @GetMapping("/detail/{id}")
+    public String show(@PathVariable Long id, 
+                       @RequestParam(name = "key", required = false) String key,
+                       Model model, 
+                       Principal principal) {
+        List<Ticket> allTickets;
 
-		return "tickets/detail";
-	}
+        Ticket ticket = ticketRep.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
 
-	@GetMapping("/create")
-	public String create(Model model) {
-		model.addAttribute("ticket", new Ticket());
-		model.addAttribute("allCategories", categoryRep.findAll());
-		return "tickets/create";
-	}
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-	@PostMapping("/create")
-	public String store(@ModelAttribute("ticket") Ticket formTickets, BindingResult bindingResult,
-			RedirectAttributes redirectAttributes, Model model) {
-		if (bindingResult.hasErrors()) {
-			model.addAttribute("allCategories", categoryRep.findAll());
-			return "tickets/create";
-		}
-		Category cat = categoryRep.findById(formTickets.getCategory().getId())
-				.orElseThrow(() -> new IllegalArgumentException("Invalid category ID"));
-		formTickets.setCategory(cat);
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isOperator = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("OPERATOR"));
 
-		User adminUser = userRep.findByUsername("admin");
+        if (isOperator && !ticket.getUsers().equals(currentUser)) {
+            throw new AccessDeniedException("You are not allowed to see this ticket");
+        }
 
-		formTickets.setUsers(adminUser);
+        model.addAttribute("ticket", ticket);
+        model.addAttribute("key", key);
 
-		formTickets.setStatus(Status.TODO);
-		ticketRep.save(formTickets);
+        if (key != null && !key.isBlank() && !key.equals("null")) {
+            allTickets = ticketRep.findByTitleContaining(key);
+            model.addAttribute("key", key);
+        } else {
+            allTickets = ticketRep.findAll();
+        }
 
-		redirectAttributes.addFlashAttribute("scsMs", "New Ticket was create");
-		return "redirect:/tickets";
-	}
+        model.addAttribute("tickets", allTickets);
 
-	@GetMapping("/edit/{id}")
-	public String edit(@PathVariable Long id, Model model) {
-		Ticket ticket = ticketRep.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
-		model.addAttribute("ticket", ticket);
-		model.addAttribute("allCategories", categoryRep.findAll());
-		return "tickets/edit";
-	}
+        return "tickets/detail";
+    }
 
-	@PostMapping("edit/{id}")
-	public String update(@PathVariable Long id, @Valid @ModelAttribute("ticket") Ticket formTicket,
-			BindingResult bindingResult, Model model) {
+    /**
+     * Mostra il form per creare un nuovo Ticket.
+     * Solo ADMIN può accedere.
+     */
+    @GetMapping("/create")
+    public String create(Model model) {
+        model.addAttribute("ticket", new Ticket());
+        model.addAttribute("allCategories", categoryRep.findAll());
+        return "tickets/create";
+    }
 
-		if (bindingResult.hasErrors()) {
-			return "/tickets/edit";
-		}
+    /**
+     * Salva un nuovo Ticket.
+     * Solo ADMIN può creare ticket.
+     */
+    @PostMapping("/create")
+    public String store(@Valid @ModelAttribute("ticket") Ticket formTicket, 
+                       BindingResult bindingResult,
+                       RedirectAttributes redirectAttributes, 
+                       Model model, 
+                       Principal principal) {
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("allCategories", categoryRep.findAll());
+            return "tickets/create";
+        }
 
-		Ticket existingTicket = ticketRep.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
+        Category cat = categoryRep.findById(formTicket.getCategory().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid category ID"));
+        formTicket.setCategory(cat);
 
-		formTicket.setUsers(existingTicket.getUsers());
+        User adminUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-		ticketRep.save(formTicket);
-		return "redirect:/tickets";
-	}
+        formTicket.setUsers(adminUser); // Assicurati che il metodo setter sia corretto (setUser)
+        formTicket.setStatus(Status.TODO);
+        ticketRep.save(formTicket);
 
-	@PostMapping("/delete/{id}")
-	public String deleteTicket(@PathVariable("id") Long id) {
+        redirectAttributes.addFlashAttribute("scsMs", "New Ticket was created");
+        return "redirect:/tickets";
+    }
 
-		noteRep.deleteById(id);
-		ticketRep.deleteById(id);
+    /**
+     * Mostra il form per modificare un Ticket.
+     * - ADMIN può modificare qualsiasi ticket.
+     * - OPERATOR può modificare solo i ticket a lui assegnati.
+     */
+    @GetMapping("/edit/{id}")
+    public String edit(@PathVariable Long id, 
+                       Model model, 
+                       Principal principal) {
+        Ticket ticket = ticketRep.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
 
-		return "redirect:/tickets";
-	}
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-	@PostMapping("/updateStatus/{id}")
-	public String updateStatus(@PathVariable Long id, @RequestParam Status status) {
-		Ticket ticket = ticketRep.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
-		ticket.setStatus(status);
-		ticketRep.save(ticket);
-		return "redirect:/tickets";
-	}
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isOperator = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("OPERATOR"));
 
-	@PostMapping("/addNote/{id}")
-	public String addNote(@PathVariable Long id, @RequestParam String text) {
-		Ticket ticket = ticketRep.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
-		Note note = new Note();
-		note.setText(text);
-		note.setDate(LocalDate.now());
-		note.setTickets(ticket);
-		noteRep.save(note);
-		return "redirect:/tickets";
-	}
+        if (isOperator && !ticket.getUsers().equals(currentUser)) {
+            throw new AccessDeniedException("You are not allowed to edit this ticket");
+        }
 
+        model.addAttribute("ticket", ticket);
+        model.addAttribute("allCategories", categoryRep.findAll());
+        return "tickets/edit";
+    }
+
+    /**
+     * Aggiorna un Ticket.
+     * - ADMIN può aggiornare qualsiasi ticket.
+     * - OPERATOR può aggiornare solo i ticket a lui assegnati.
+     */
+    @PostMapping("/edit/{id}")
+    public String update(@PathVariable Long id, 
+                         @Valid @ModelAttribute("ticket") Ticket formTicket,
+                         BindingResult bindingResult, 
+                         Model model, 
+                         Principal principal) {
+
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("allCategories", categoryRep.findAll());
+            return "tickets/edit";
+        }
+
+        Ticket existingTicket = ticketRep.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
+
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isOperator = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("OPERATOR"));
+
+        if (isOperator && !existingTicket.getUsers().equals(currentUser)) {
+            throw new AccessDeniedException("You are not allowed to update this ticket");
+        }
+
+        // Mantieni l'utente assegnato
+        formTicket.setUsers(existingTicket.getUsers());
+
+        // Imposta la categoria
+        Category cat = categoryRep.findById(formTicket.getCategory().getId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid category ID"));
+        formTicket.setCategory(cat);
+
+        // Mantieni lo status originale se non è stato modificato
+        if (formTicket.getStatus() == null) {
+            formTicket.setStatus(existingTicket.getStatus());
+        }
+
+        ticketRep.save(formTicket);
+        return "redirect:/tickets";
+    }
+
+    /**
+     * Elimina un Ticket.
+     * Solo ADMIN può eliminare ticket.
+     */
+    @PostMapping("/delete/{id}")
+    public String deleteTicket(@PathVariable Long id, Principal principal) {
+
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
+
+        if (!isAdmin) {
+           throw new AccessDeniedException("Only admin can delete tickets");
+       }
+
+        Ticket ticket = ticketRep.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
+
+        noteRep.deleteAll(ticket.getNotes());
+
+        ticketRep.delete(ticket);
+
+        return "redirect:/tickets";
+    }
+
+    /**
+     * Aggiorna lo stato di un Ticket.
+     * - ADMIN può aggiornare qualsiasi ticket.
+     * - OPERATOR può aggiornare solo i ticket a lui assegnati.
+     */
+    @PostMapping("/updateStatus/{id}")
+    public String updateStatus(@PathVariable Long id, 
+                               @RequestParam Status status, 
+                               Principal principal) {
+        Ticket ticket = ticketRep.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
+
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isOperator = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("OPERATOR"));
+
+        if (isOperator && !ticket.getUsers().equals(currentUser)) {
+            throw new AccessDeniedException("You are not allowed to update this ticket");
+        }
+        ticket.setStatus(status);
+        ticketRep.save(ticket);
+        return "redirect:/tickets";
+    }
+
+    /**
+     * Aggiunge una Nota a un Ticket.
+     * - ADMIN può aggiungere note a qualsiasi ticket.
+     * - OPERATOR può aggiungere note solo ai ticket a lui assegnati.
+     */
+    @PostMapping("/addNote/{id}")
+    public String addNote(@PathVariable Long id, 
+                          @RequestParam String text, 
+                          Principal principal) {
+        Ticket ticket = ticketRep.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid ticket Id:" + id));
+
+        User currentUser = userRep.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean isAdmin = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isOperator = currentUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("OPERATOR"));
+
+       if (isOperator && !ticket.getUsers().equals(currentUser)) {
+           throw new AccessDeniedException("You are not allowed to add notes to this ticket");
+        
+       }
+        Note note = new Note();
+        note.setText(text);
+        note.setDate(LocalDate.now());
+        note.setTicket(ticket);
+        note.setAuthor(currentUser.getUsername()); // Imposta l'autore come username
+
+        noteRep.save(note);
+        return "redirect:/tickets/detail/" + id;
+    
+    }
 }
